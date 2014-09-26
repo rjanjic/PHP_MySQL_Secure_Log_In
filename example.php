@@ -33,15 +33,20 @@ $loggedin = FALSE;
 if ($a->loggedIn()) {
 	$loggedin = TRUE;
 	if (!empty($_POST['logout'])) { // Log out
-		$a->logOut('example.php?loggedOut');
+		$a->logOut('example.php?loggedOutLocation');
 	}
 	echo '<b>Logged in!</b>' . PHP_EOL;
 	
 } else {
 	$loggedin = FALSE;
-	if (isset($_POST['login']) && $a->logInUser($_POST['email'], $_POST['password'])) { // Login
-		header('Location: example.php?loggedIn');
-		$loggedin = TRUE;
+	if (isset($_POST['login'])) {
+		if ($a->logInUser($_POST['email'], $_POST['password'])) { // Login
+			header('Location: example.php?loggedInLocation');
+			$loggedin = TRUE;
+		} else {
+			echo '<b>Woops!</b>' . PHP_EOL;
+			echo '<b>Email or password is wrong!</b>' . PHP_EOL;
+		}
 	}
 }
 

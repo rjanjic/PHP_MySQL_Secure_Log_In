@@ -81,7 +81,7 @@ class User_Log_In extends User_Validation {
 	 * @return	boolean
 	 */
 	function logInUser($email, &$password) {
-		if ($this->checkCredentials($email, $password)) {
+		if ($this->checkCredentials($email, $password) === TRUE) {
 			$_SESSION[$this->sessionVarName]['EMAIL'] = $email;
 			$_SESSION[$this->sessionVarName]['TOKEN'] = $this->updateToken($email);
 			unset($password);
