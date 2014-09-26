@@ -2,10 +2,10 @@
 /******************************************************************
  * 
  * Projectname:   PHP MySQL Wrapper Class 
- * Version:       1.4
- * Author:        Radovan Janjic <rade@it-radionica.com>
- * Last modified: 20 05 2013
- * Copyright (C): 2012 IT-radionica.com, All Rights Reserved
+ * Version:       1.6
+ * Author:        Radovan Janjic <hi@radovanjanjic.com>
+ * Last modified: 11 08 2014
+ * Copyright (C): 2008-2014 IT-radionica.com, All Rights Reserved
  * 
  * GNU General Public License (Version 2, June 1991)
  *
@@ -34,99 +34,199 @@ class MySQL_wrapper {
 	/** Class Version 
 	 * @var float 
 	 */
-	var $version = '1.4';
+	private $version = '1.6';
+	
+	/** Store the single instance
+	 * @var array
+	 */
+	private static $instance = array();
 	
 	/** MySQL Host name  
 	 * @var string
 	 */
-	var $server = NULL;
+	private $server = NULL;
 	
 	/** MySQL User
 	 * @var string
 	 */
-	var $username = NULL;
+	private $username = NULL;
 	
 	/** MySQL Password
 	 * @var string
 	 */
-	var $password = NULL;
+	private $password = NULL;
 	
 	/** MySQL Database
 	 * @var string
 	 */
-	var $database = NULL;
+	private $database = NULL;
 	
-	/** Connection Character Set (Default: UTF-8)
+	/** mysql / mysqli
 	 * @var string
 	 */
-	var $character = 'utf8';
+	public $extension = 'mysqli';
+	 
+	/** Connection Charset (Default: UTF-8)
+	 * @var string
+	 */
+	public $charset = 'utf8';
 	
 	/** Error Description 
 	 * @var string
 	 * */
-	var $error = NULL;
+	public $error = NULL;
 	
 	/** Error Number 
 	 * @var integer
 	 */
-	var $errorNo = 0;
+	public $errorNo = 0;
 	
 	/** Display Errors (Default: TRUE)
 	 * @var boolean
 	 */
-	var $displayError = TRUE;
+	public $displayError = TRUE;
 	
 	/** Link
 	 * @var resurse
 	 */
-	var $link = 0;
+	public $link = 0;
 	
 	/** Query
 	 * @var resurse
 	 */
-	var $query = 0;
+	public $query = 0;
 	
 	/** Affected Rows 
 	 * @var integer
 	 */
-	var $affected = 0;
+	public $affected = 0;
 	
 	/** Log Queries to file (Default: FALSE)
 	 * @var boolean
 	 */
-	var $logQueries = FALSE;
+	public $logQueries = FALSE;
 	
 	/** Log Errors to file (Default: FALSE)
 	 * @var boolean
 	 */
-	var $logErrors = FALSE;
+	public $logErrors = FALSE;
+	
+	/** Stop script execution on error (Default: FALSE)
+	 * @var boolean
+	 */
+	public $dieOnError = FALSE;
+	
+	/** E-mail errors (Default: FALSE)
+	 * @var boolean
+	 */
+	public $emailErrors = FALSE;
+	
+	/** E-mail errors to (array with emails)
+	 * @var array
+	 */
+	public $emailErrorsTo = array();
+	
+	/** E-mail errors subject
+	 * @var string
+	 */
+	public $emailErrorsSubject = 'MySQL ERROR ON SERVER: %s';
 	
 	/** Log Date Format (Default: Y-m-d H:i:s)
 	 * @var string
 	 */
-	var $dateFormat	= 'Y-m-d H:i:s';
+	public $dateFormat	= 'Y-m-d H:i:s';
 	
 	/** Log File Path (Default: log-mysql.txt)
 	 * @var string
 	 */
-	var $logFilePath = 'log-mysql.txt';
+	public $logFilePath = 'log-mysql.txt';
 	
 	/** Reserved words for array to ( insert / update )
 	 * @var array
 	 */
-	var $reserved = array('null', 'now()', 'current_timestamp', 'curtime()', 'localtime()', 'localtime', 'utc_date()', 'utc_time()', 'utc_timestamp()');
+	public $reserved = array('null', 'now()', 'current_timestamp', 'curtime()', 'localtime()', 'localtime', 'utc_date()', 'utc_time()', 'utc_timestamp()');
 	
-	/** Constructor
+	/** Start of MySQL statement for array to ( insert / update )
+	 * @var string
+	 */
+	public $statementStart = 'sql::';
+	
+	/** REGEX
+	 * @var array
+	 */
+	private $REGEX = array('LIMIT' => '/limit[\s]+([\d]+[\s]*,[\s]*[\d]+[\s]*|[\d]+[\s]*)$/i', 'COLUMN' => '/^[a-z0-9_\-\s]+$/i');
+	
+	/** Singleton declaration
+	 * @param 	string 		$server		- MySQL Host name 
+	 * @param 	string 		$username 	- MySQL User
+	 * @param 	string 		$password 	- MySQL Password
+	 * @param 	string 		$database 	- MySQL Database
+	 * @return	- singleton instance
+	 */
+	public static function getInstance($server = NULL, $username = NULL, $password = NULL, $database = NULL){
+		$md5 = md5(implode('|', array($server, $username, $password, $database)));
+		if (empty(self::$instance[$md5])) {
+			self::$instance[$md5] = new MySQL_wrapper($server, $username, $password, $database);  
+		}
+		return self::$instance[$md5];
+	}
+	
+	/** Protected constructor to prevent creating a new instance of the MySQL_wrapper via the `new` operator from outside of this class.
 	 * @param 	string 		$server		- MySQL Host name 
 	 * @param 	string 		$username 	- MySQL User
 	 * @param 	string 		$password 	- MySQL Password
 	 * @param 	string 		$database 	- MySQL Database
 	 */
-	function MySQL_wrapper($server = NULL, $username = NULL, $password = NULL, $database = NULL) {
+	protected function __construct($server = NULL, $username = NULL, $password = NULL, $database = NULL) {
 		$this->server = $server;
 		$this->username = $username;
 		$this->password = $password;
 		$this->database = $database;
+	}
+	
+	/** Private clone method to prevent cloning of the instance of the MySQL_wrapper instance.
+	 * @return void
+	 */
+	private function __clone() {
+		// ... void
+	}
+	
+	/** Private unserialize method to prevent unserializing of the MySQL_wrapper instance.
+	 * @return void
+	 */
+	private function __wakeup() {
+		// ... void
+	}
+	
+	/** Call function
+	 * @param 	string 		$func		- function name
+	 * @param 	string 		$params 	- MySQL User
+	 * @param 	return
+	 */
+	public function call($func) {
+		// Functions without link parameter
+		$l = array('free_result', 'fetch_assoc', 'num_rows', 'num_fields', 'fetch_object', 'fetch_field_direct');
+		// Add return value
+		$r = array('free_result' => TRUE);
+		// Params
+		if (func_num_args() >= 2) {
+			$params = func_get_args();
+			unset($params[0]);
+			if ($this->extension == 'mysql') {
+				$params = in_array($func, $l) ? $params : array_merge($params, array($this->link));
+			} elseif ($this->extension == 'mysqli') {
+				$params = in_array($func, $l) ? $params : array_merge(array($this->link), $params);
+			}
+		} else {
+			$params = array($this->link);
+		}
+		// Return
+		if (in_array($func, array_keys($r)) && $this->extension == 'mysqli') {
+			call_user_func_array("{$this->extension}_{$func}", $params);
+			return $r[$func];
+		} else {
+			return call_user_func_array("{$this->extension}_{$func}", $params);
+		}
 	}
 	
 	/** Connect 
@@ -137,77 +237,98 @@ class MySQL_wrapper {
 	 * @param 	boolean		$newLink	- New link
 	 * @return 	boolean 
 	 */
-	function connect($server = NULL, $username = NULL, $password = NULL, $database = NULL, $newLink = FALSE) {
+	public function connect($server = NULL, $username = NULL, $password = NULL, $database = NULL, $newLink = FALSE) {
 		if ($server !== NULL && $username !== NULL && $database !== NULL) {
 			$this->server = $server;
 			$this->username = $username;
 			$this->password = $password;
 			$this->database = $database;
 		}
-		$this->link = @mysql_connect($this->server, $this->username, $this->password, $newLink) or $this->error("Couldn't connect to server: {$this->server}.");
-		if ($this->link) {
-			$this->setCharacter($this->character);	
-			@mysql_select_db($this->database, $this->link) or $this->error("Could not open database: {$this->database}.");
-			return TRUE;
-		} else {
-			return FALSE;	
+		
+		if ($this->extension == 'mysql') {
+			$this->link = @mysql_connect($this->server, $this->username, $this->password, $newLink) or $this->error("Couldn't connect to server: {$this->server}.");
+			if ($this->link) {
+				$this->setCharset();
+				@mysql_select_db($this->database, $this->link) or $this->error("Could not open database: {$this->database}.");
+				return TRUE;
+			} else {
+				return FALSE;	
+			}
+		} elseif ($this->extension == 'mysqli') {
+			$this->link = mysqli_connect($this->server, $this->username, $this->password, $this->database);
+			// Check connection
+			if (mysqli_connect_errno($this->link)) {
+				$this->error("Failed to connect to MySQL: " . mysqli_connect_error());
+				return FALSE;
+			} else {
+				$this->setCharset();
+				return TRUE;
+			}
 		}
 	}
 	
-	/** Sets the default character set for the current connection.
-	 * @param 	string 		$character 	- A valid character set name ( If not defined $this->character whill be used)
-	 * @param 	resource 	$link 		- Link identifier
+	/** Sets the default charset for the current connection.
+	 * @param 	string 		$charset 	- A valid charset name ( If not defined $this->charset whill be used)
 	 * @return	boolean
 	 */
-	function setCharacter($character, $link = 0) {
-		$this->link = $link ? $link : $this->link;
-		$this->character = $character ? $character : $this->character;
-		if ($this->link && $this->character)
-			if (function_exists('mysql_set_charset')) {
-				return mysql_set_charset($this->character, $this->link);
-			} else {
-				$this->query("SET NAMES '{$this->character}';", $this->link);
-				$this->query("SET CHARACTER SET '{$this->character}';", $this->link);
-				$this->query("SET character_set_results = '{$this->character}', character_set_client = '{$this->character}', character_set_connection = '{$this->character}', character_set_database = '{$this->character}', character_set_server = '{$this->character}';", $this->link);
-				return TRUE;
-			}
-		else return FALSE;
+	public function setCharset($charset = NULL) {
+		$this->charset = $charset ? $charset : $this->charset;
+		$this->call('set_charset', $this->charset) or $this->error("Error loading character set {$this->charset}");
 	}
 	
 	/** Checks whether or not the connection to the server is working.
-	 * @param 	resurse 	$link 		- Link identifier
+	 * @param 	void
 	 * @return 	boolean 
 	 */
-	function ping($link = 0) {
-		return mysql_ping($link ? $link : $this->link);
+	public function ping() {
+		return $this->call('ping');
 	}
 	
 	/** Reconnect to the server.
-	 * @param 	resurse 	$link 		- Link identifier
+	 * @param 	void
 	 * @return 	boolean 
 	 */
-	function reconnect($link = 0) {
-		$this->close($link ? $link : $this->link);
+	public function reconnect() {
+		$this->close();
 		return $this->connect();
 	}
 	
 	/** Close Connection on the server that's associated with the specified link (identifier).
-	 * @param 	resurse 	$link 		- Link identifier
+	 * @param 	void
 	 */
-	function close($link = 0) {
-		@mysql_close($link ? $link : $this->link) or $this->error("Connection close failed.");
+	public function close() {
+		$this->call('close') or $this->error("Connection close failed.");
 	}
 	
 	/** Execute a unique query (multiple queries are not supported) to the currently active database on the server that's associated with the specified link (identifier).
 	 * @param 	string 		$sql 		- MySQL Query
-	 * @param 	resource 	$link 		- Link identifier
+	 * @param 	mixed 		- array of params to be escaped or one param
+	 * @param 	mixed 		- param
+	 * @param 	mixed 		- ...
 	 * @return 	resource or false
 	 */
-	function query($sql, $link = 0) {
-		$this->link = $link ? $link : $this->link;
+	public function query($sql) {
+		if (func_num_args() >= 2) {
+			$l = func_get_args();
+			unset($l[0]);
+			$p = array();
+			if (is_array($l[1])) {
+				$l = $l[1];
+			}
+			foreach ($l as $k => $v) {
+				$p['search'][] = "@{$k}";
+				if (preg_match('/^' . preg_quote($this->statementStart) . '/i', $v)) {
+					$p['replace'][] = preg_replace('/^' . preg_quote($this->statementStart) . '/i', NULL, $v);
+				} else {
+					$p['replace'][] = $this->escape($v);
+				}
+			}
+			$sql = str_replace($p['search'], $p['replace'], $sql);
+			unset($l, $p);
+		}
 		if($this->logQueries) $start = $this->getMicrotime();
-		$this->query = @mysql_query($sql, $this->link) or $this->error("Query fail: {$sql}");
-		$this->affected = @mysql_affected_rows($this->link);
+		$this->query = $this->call('query', $sql) or $this->error("Query fail: " . $sql);
+		$this->affected = $this->call('affected_rows');
 		if ($this->query && $this->logQueries) $this->log('QUERY', "EXEC -> " . number_format($this->getMicrotime() - $start, 8) . " -> " . $sql);
 		return $this->query ? $this->query : FALSE;
 	}
@@ -216,35 +337,32 @@ class MySQL_wrapper {
 	 * @param 	resource 	$query 		- MySQL Query Result
 	 * @return 	integer 	- Retrieves the number of fields from a query
 	 */
-	function numFields($query = 0) {
-		return intval(@mysql_num_fields($query ? $query : $this->query));
+	public function numFields($query = 0) {
+		return intval($this->call('num_fields', $query ? $query : $this->query));
 	}
 	
 	/** Get number of rows in result
 	 * @param 	resource 	$query 		- MySQL Query Result
 	 * @return 	integer 	- Retrieves the number of rows from a result set
 	 */
-	function numRows($query = 0) {
-		return intval(mysql_num_rows($query ? $query : $this->query));
+	public function numRows($query = 0) {
+		return intval($this->call('num_rows', $query ? $query : $this->query));
 	}
 	
 	/** Get number of rows in result
 	 * @param 	resource 	$query 		- Result resource that is being evaluated ( Query Result )
 	 * @return 	bool
 	 */
-	function freeResult($query = 0) {
-		$this->query = $query ? $query : $this->query;
-		@mysql_free_result($this->query) or $this->error("Result ID: {$this->query} could not be freed.");
+	public function freeResult($query = 0) {
+		$this->call('free_result', $query ? $query : $this->query) or $this->error("Result could not be freed.");
 	}
 	
 	/** Get Columns names into array
 	 * @param 	string 		$table 		- Table name
-	 * @param 	resource 	$link 		- Link identifier
 	 * @return 	array 		$columns 	- Names of Fields
 	 */
-	function getColumns($table, $link = 0) {
-		$this->link = $link ? $link : $this->link;
-		$q = $this->query("SHOW COLUMNS FROM `{$table}`;", $this->link);
+	public function getColumns($table) {
+		$q = $this->query("SHOW COLUMNS FROM `{$table}`;");
 		$columns = array();
 		while ($row = $this->fetchArray($q)) $columns[] = $row['Field'];
 		$this->freeResult($q);
@@ -255,10 +373,10 @@ class MySQL_wrapper {
 	 * @param 	resource 	$query 		- MySQL Query Result
 	 * @return 	array or false
 	 */
-	function fetchArray($query = 0) {
+	public function fetchArray($query = 0) {
 		$this->query = $query ? $query : $this->query;
 		if ($this->query) {
-			return @mysql_fetch_assoc($this->query);
+			return $this->call('fetch_assoc', $this->query);
 		} else {
 			$this->error("Invalid Query ID: {$this->query}. Records could not be fetched.");
 			return FALSE;
@@ -268,19 +386,17 @@ class MySQL_wrapper {
 	/** Returns array with fetched associative rows.
 	 * @param 	string 		$sql 		- MySQL Query
 	 * @param 	string 		$fetchFirst	- Fetch only first row
-	 * @param 	resource 	$link 		- Link identifier
 	 * @return 	array
 	 */
-	function fetchQueryToArray($sql, $fetchFirst = FALSE, $link = 0) {
-		$this->link = $link ? $link : $this->link; 
+	public function fetchQueryToArray($sql, $fetchFirst = FALSE) {
 		if ($fetchFirst) {
 			$sql = rtrim(trim($sql), ';');
-			$sql = preg_replace('/limit(([\s]+([\d]+)[\s]*,[\s]*([\d]+))|([\s]+([\d]+)))$/i', 'LIMIT 1;', $sql);
+			$sql = preg_replace($this->REGEX['LIMIT'], 'LIMIT 1;', $sql);
 			if (substr($sql, -strlen('LIMIT 1;')) !== 'LIMIT 1;') {
 				$sql .= ' LIMIT 1;';
 			}
 		}
-		$q = $this->query($sql, $this->link);
+		$q = $this->query($sql);
 		$array = array();
 		if ($fetchFirst && $this->affected > 0) {
 			$array = $this->fetchArray($q);
@@ -293,12 +409,13 @@ class MySQL_wrapper {
 	
 	/** Escapes special characters in a string for use in an SQL statement.
 	 * @param 	string 		$string - unescaped string
-	 * @param 	resource 	$link 	- link identifier
 	 * @return 	string
 	 */
-	function escape($string, $link = 0) {
-		$this->link = $link ? $link : $this->link;
-		return (version_compare(PHP_VERSION, '5.4.0') >= 0) ? @mysql_real_escape_string($string, $this->link) : @mysql_real_escape_string(get_magic_quotes_gpc() ? stripslashes($string) : $string, $this->link);
+	public function escape($string) {
+		if (!version_compare(PHP_VERSION, '5.4.0') >= 0) {
+			$string = get_magic_quotes_gpc() ? stripslashes($string) : $string;
+		}
+		return $this->call('real_escape_string', $string);
 	}
 	
 	/** Creates an sql string from an associate array
@@ -306,14 +423,27 @@ class MySQL_wrapper {
 	 * @param 	array 		$data 	- Data array Eg. $data['column'] = 'val';
 	 * @param 	string 		$where 	- MySQL WHERE Clause
 	 * @param 	integer 	$limit 	- Limit offset
-	 * @param 	resource 	$link 	- link identifier
 	 * @return 	number of updated rows or false
 	 */
-	function arrayToUpdate($table, $data, $where = NULL, $limit = 0, $link = 0) {
-		$this->link = $link ? $link : $this->link;
+	public function arrayToUpdate($table, $data, $where = NULL, $limit = 0) {
+		if (is_array(reset($data))) {
+			$cols = array();
+			foreach (array_keys($data[0]) as $c) {
+				$cols[] = "`{$c}` = VALUES(`{$c}`)";
+			}
+			return $this->arrayToInsert($table, $data, TRUE, implode(', ', $cols));
+		}
 		$fields = array();
-		foreach ($data as $key => $val) $fields[] = (in_array(strtolower($val), $this->reserved)) ? "`$key` = " . strtoupper($val) : "`$key` = '" . $this->escape($val) . "'";
-		return (!empty($fields)) ? $this->query("UPDATE `{$table}` SET " . implode(', ', $fields) . ($where ? " WHERE {$where}" : NULL) . ($limit ? " LIMIT {$limit}" : NULL) . ";", $this->link) ? $this->affected : FALSE : FALSE;
+		foreach ($data as $key => $val) {
+			if (in_array(strtolower($val), $this->reserved)) {
+				$fields[] = "`{$key}` = " . strtoupper($val);
+			} elseif (preg_match('/^' . preg_quote($this->statementStart) . '/i', $val)) {
+				$fields[] = "`{$key}` = " . preg_replace('/^' . preg_quote($this->statementStart) . '/i', NULL, $val);
+			} else {
+				$fields[] = "`{$key}` = '{$this->escape($val)}'";
+			}
+		}
+		return (!empty($fields)) ? $this->query("UPDATE `{$table}` SET " . implode(', ', $fields) . ($where ? " WHERE {$where}" : NULL) . ($limit ? " LIMIT {$limit}" : NULL) . ";") ? $this->affected : FALSE : FALSE;
 	}
 	
 	/** Creates an sql string from an associate array
@@ -321,29 +451,40 @@ class MySQL_wrapper {
 	 * @param 	array 		$data 	- Data array Eg. array('column' => 'val') or multirows array(array('column' => 'val'), array('column' => 'val2'))
 	 * @param 	boolean		$ingore	- INSERT IGNORE (row won't actually be inserted if it results in a duplicate key)
 	 * @param 	string 		$duplicateupdate 	- ON DUPLICATE KEY UPDATE (The ON DUPLICATE KEY UPDATE clause can contain multiple column assignments, separated by commas.)
-	 * @param 	resource 	$link 	- link identifier
 	 * @return 	insert id or false
 	 */
-	function arrayToInsert($table, $data, $ignore = FALSE, $duplicateupdate = NULL, $link = 0) {
-		$this->link = $link ? $link : $this->link;
-		$depth = create_function('$a,$callback', '$m = 1; foreach ($a as $v) if (is_array($v)) { $d = $callback($v,$callback) + 1; if ($d > $m) $m = $d; } return $m;');
-		$multirow = ($depth($data, $depth) == 2);
+	public function arrayToInsert($table, $data, $ignore = FALSE, $duplicateupdate = NULL) {
+		$multirow = is_array(reset($data));
 		if ($multirow) {
 			$c = implode('`, `', array_keys($data[0]));
 			$dat = array();
 			foreach ($data as &$val) {
 				foreach ($val as &$v) {
-					$v = (in_array(strtolower($v), $this->reserved)) ? strtoupper($v) : "'" . $this->escape($v) . "'";
+					if (in_array(strtolower($v), $this->reserved)) {
+						$v = strtoupper($v);
+					} elseif (preg_match('/^' . preg_quote($this->statementStart) . '/i', $v)) {
+						$v = preg_replace('/^' . preg_quote($this->statementStart) . '/i', NULL, $v);
+					} else {
+						$v = "'{$this->escape($v)}'";
+					}
 				}
 				$dat[] = "( " . implode(', ', $val) . " )";
 			}
 			$v = implode(', ', $dat);
 		} else {
 			$c = implode('`, `', array_keys($data));
-			foreach ($data as &$val) $val = (in_array(strtolower($val), $this->reserved)) ? strtoupper($val) : "'" . $this->escape($val) . "'";
+			foreach ($data as &$val) {
+				if (in_array(strtolower($val), $this->reserved)) {
+					$val = strtoupper($val);
+				} elseif (preg_match('/^' . preg_quote($this->statementStart) . '/i', $val)) {
+					$val = preg_replace('/^' . preg_quote($this->statementStart) . '/i', NULL, $val);
+				} else {
+					$val = "'{$this->escape($val)}'";
+				}
+			}
 			$v = "( " . implode(', ', $data) . " )";
 		}
-		return (!empty($data)) ? $this->query("INSERT" . ($ignore ? " IGNORE" : NULL) . " INTO `{$table}` ( `{$c}` ) VALUES {$v}" . ($duplicateupdate ? " ON DUPLICATE KEY UPDATE {$duplicateupdate}" : NULL) . ";") ? ($multirow ? TRUE : $this->insertId($this->link)) : FALSE : FALSE;
+		return (!empty($data)) ? $this->query("INSERT" . ($ignore ? " IGNORE" : NULL) . " INTO `{$table}` ( `{$c}` ) VALUES {$v}" . ($duplicateupdate ? " ON DUPLICATE KEY UPDATE {$duplicateupdate}" : NULL) . ";") ? ($multirow ? TRUE : $this->insertID()) : FALSE : FALSE;
 	}
 	
 	/** Imports CSV data to Table with possibility to update rows while import.
@@ -355,13 +496,21 @@ class MySQL_wrapper {
 	 * @param 	integer 	$ignore 		- Number of ignored rows (Default: 1)
 	 * @param 	array		$update 		- If row fields needed to be updated eg date format or increment (SQL format only @FIELD is variable with content of that field in CSV row) $update = array('SOME_DATE' => 'STR_TO_DATE(@SOME_DATE, "%d/%m/%Y")', 'SOME_INCREMENT' => '@SOME_INCREMENT + 1')
 	 * @param 	string 		$getColumnsFrom	- Get Columns Names from (file or table) - this is important if there is update while inserting (Default: file)
-	 * @param 	string 		$newLine		- New line delimiter (Default: \n)
-	 * @param 	resource 	$link 			- Link identifier
+	 * @param 	string 		$newLine		- New line delimiter (Default: auto detection use \n, \r\n ...)
 	 * @return 	number of inserted rows or false
 	 */
-	function importCSV2Table($file, $table, $delimiter = ',', $enclosure = '"', $escape = '\\', $ignore = 1, $update = array(), $getColumnsFrom = 'file', $newLine = '\n', $link = 0) {
-		$this->link = $link ? $link : $this->link;
+	public function importCSV2Table($file, $table, $delimiter = ',', $enclosure = '"', $escape = '\\', $ignore = 1, $update = array(), $getColumnsFrom = 'file', $newLine = FALSE) {
 		$file = file_exists($file) ? realpath($file) : NULL;
+		$file = realpath($file);
+		if (!file_exists($file)) {
+			$this->error('ERROR', "Import CSV to Table - File: {$file} doesn't exist.");
+			return FALSE;
+		}
+		
+		if ($newLine === FALSE) {
+			$newLine = $this->detectEOL($file);
+		}
+		
 		$sql = "LOAD DATA LOCAL INFILE '{$this->escape($file)}' " . 
 			   "INTO TABLE `{$table}` " .
 			   "COLUMNS TERMINATED BY '{$delimiter}' " .
@@ -378,7 +527,7 @@ class MySQL_wrapper {
 				$line = fgets($f);
 				fclose($f);
 				$columns = explode($delimiter, str_replace($enclosure, NULL, trim($line)));
-				foreach ($columns as $c) preg_match('/^[A-Za-z][A-Za-z0-9_]*$/i', $c) or ($this->logErrors) ? $this->log("ERROR", "Invalid Column Name: {$c} in CSV file: {$file}. Data can not be loaded into table: {$table}.") : FALSE;
+				foreach ($columns as $c) preg_match($this->REGEX['COLUMN'], $c) or $this->error("ERROR", "Invalid Column Name: {$c} in CSV file: {$file}. Data can not be loaded into table: {$table}.");
 			}
 			
 			foreach ($columns as &$c) $c = (in_array($c, array_keys($update))) ? '@' . $c : "`{$c}`";
@@ -389,7 +538,81 @@ class MySQL_wrapper {
 			$sql .= "SET " . implode(', ', $fields);
 		}
 		$sql .= ";";
-		return ($this->query($sql, $this->link)) ? $this->affected : FALSE;
+		return ($this->query($sql)) ? $this->affected : FALSE;
+	}
+	
+	/** Imports (ON DUPLICATE KEY UPDATE) CSV data in Table with possibility to update rows while import.
+	 * @param 	string		$file			- CSV File path
+	 * @param 	string 		$table 			- Table name
+	 * @param	string		$delimiter		- COLUMNS TERMINATED BY (Default: ',')
+	 * @param	string 		$enclosure		- OPTIONALLY ENCLOSED BY (Default: '"')
+	 * @param 	string		$escape 		- ESCAPED BY (Default: '\')
+	 * @param 	integer 	$ignore 		- Number of ignored rows (Default: 1)
+	 * @param 	array		$update 		- If row fields needed to be updated eg date format or increment (SQL format only @FIELD is variable with content of that field in CSV row) $update = array('SOME_DATE' => 'STR_TO_DATE(@SOME_DATE, "%d/%m/%Y")', 'SOME_INCREMENT' => '@SOME_INCREMENT + 1')
+	 * @param 	string 		$getColumnsFrom	- Get Columns Names from (file or table) - this is important if there is update while inserting (Default: file)
+	 * @param 	string 		$newLine		- New line delimiter (Default: auto detection use \n, \r\n ...)
+	 * @return 	number of inserted rows or false
+	 */
+	public function importUpdateCSV2Table($file, $table, $delimiter = ',', $enclosure = '"', $escape = '\\', $ignore = 1, $update = array(), $getColumnsFrom = 'file', $newLine = FALSE) {		
+		$tmp_name = "{$table}_tmp_" . rand();
+		
+		// Create tmp table
+		$this->query("CREATE TEMPORARY TABLE `{$tmp_name}` LIKE `{$table}`;");
+		
+		// Remove auto_increment if exists
+		$change = array();
+		$this->query("SHOW COLUMNS FROM `{$tmp_name}` WHERE `Key` NOT LIKE '';");
+		if($this->affected > 0){
+			while ($row = $this->fetchArray()) {
+				$change[$row['Field']] = "CHANGE `{$row['Field']}` `{$row['Field']}` {$row['Type']}";
+			}
+			$this->freeResult();
+		}
+		
+		if ($getColumnsFrom == 'file') {
+			// Get first line of file
+			$f = fopen($file, 'r');
+			$line = fgets($f);
+			fclose($f);
+			
+			$columns = explode($delimiter, str_replace($enclosure, NULL, trim($line)));
+			
+			foreach ($columns as $c) {
+				preg_match($this->REGEX['COLUMN'], $c) or $this->error("ERROR", "Invalid Column Name: {$c} in CSV file: {$file}. Data can not be loaded into table: {$table}.");
+			}
+			
+			// Drop columns that are not in CSV file
+			foreach ($this->getColumns($table) as $c) {
+				if (!in_array($c, $columns, TRUE)) {
+					$change[$c] = "DROP COLUMN `{$c}`";
+				}
+			}
+		}
+		
+		if (count($change) > 0) {
+			$this->query("ALTER TABLE `{$tmp_name}` " . implode(', ', $change) . ";");
+		}
+		
+		// Import to tmp
+		$this->importCSV2Table($file, $tmp_name, $delimiter, $enclosure, $escape, $ignore, $update, $getColumnsFrom, $newLine);
+		
+		// Copy data
+		$cols = array();
+		if ($getColumnsFrom == 'table') {
+			$columns = $this->getColumns($tmp_name);
+		}
+		
+		foreach ($columns as $c) {
+			$cols[] = "`{$c}` = VALUES(`{$c}`)";
+		}
+		
+		$this->query("INSERT INTO `{$table}` ( `" . implode('`, `', $columns) . "` ) SELECT * FROM `{$tmp_name}` ON DUPLICATE KEY UPDATE " . implode(', ', $cols) . ";");
+		$i = $this->affected;
+		
+		// Drop tmp table
+		$this->query("DROP TEMPORARY TABLE `{$tmp_name}`;");
+		
+		return $i;
 	}
 	
 	/** Export table data to CSV file.
@@ -403,18 +626,19 @@ class MySQL_wrapper {
 	 * @param 	string		$escape 		- ESCAPED BY (Default: '\')
 	 * @param 	string 		$newLine		- New line delimiter (Default: \n)
 	 * @param 	boolean		$showColumns 	- Columns names in first line
-	 * @param 	resource 	$link 			- Link identifier
 	 * @return 	- File path
 	 */
-	function exportTable2CSV($table, $file, $columns = '*', $where = NULL, $limit = 0, $delimiter = ',', $enclosure = '"', $escape = '\\', $newLine = '\n', $showColumns = TRUE, $link = 0) {
-		$this->link = $link ? $link : $this->link;
-		$fh = fopen($file, 'w') or ($this->logErrors) ? $this->log("ERROR", "Can't create CSV file: {$file}") : FALSE;
+	public function exportTable2CSV($table, $file, $columns = '*', $where = NULL, $limit = 0, $delimiter = ',', $enclosure = '"', $escape = '\\', $newLine = '\n', $showColumns = TRUE) {
+		$fh = fopen($file, 'w') or $this->error("ERROR", "Can't create CSV file: {$file}");
+		if (!$fh) {
+			return FALSE;
+		}
 		fclose($fh);
 		$file = realpath($file);
 		unlink($file);
 		
 		// Put columns into array if not *
-		if($columns != '*' && !is_array($columns)){
+		if ($columns != '*' && !is_array($columns)) {
 			$stringColumns = $columns;
 			$columns = array();
 			foreach (explode(',', $stringColumns) as $c) {
@@ -425,25 +649,24 @@ class MySQL_wrapper {
 		// Prepare SQL for column names
 		if ($showColumns) {
 			$tableColumnsArr = array();
-			if ($columns == '*'){
+			if ($columns == '*') {
 				foreach ($this->getColumns($table) as $c)
 					$tableColumnsArr[] = "'{$c}' AS `{$c}`";
 			} elseif (is_array($columns)) {
 				foreach ($columns as $c)
 					$tableColumnsArr[] = "'{$c}' AS `{$c}`";
 			}
-			$columnsSQL = "SELECT " . implode(', ', $tableColumnsArr) . " UNION ALL ";
+			$columnsSQL = "SELECT " . implode(', ', $tableColumnsArr);
 		}
-			
-		$sql = (($showColumns) ? $columnsSQL : NULL) .
-			   "SELECT " . (is_array($columns) ? '`' . implode('`, `', $columns) . '`' : $columns) . " " . 
+		
+		$sql = "SELECT " . (is_array($columns) ? '`' . implode('`, `', $columns) . '`' : $columns) . " FROM `{$table}`" . ($where ? " WHERE {$where}" : NULL) . ($limit ? " LIMIT {$limit}" : NULL);
+		$sql = (($showColumns) ? "SELECT * FROM ( ( " . $columnsSQL . " ) UNION ALL ( {$sql} ) ) `a` " : "{$sql} ") .
 			   "INTO OUTFILE '{$this->escape($file)}' " . 
 			   "FIELDS TERMINATED BY '{$delimiter}' " .
 			   "OPTIONALLY ENCLOSED BY '{$enclosure}' " .
 			   "ESCAPED BY '{$this->escape($escape)}' " .
-			   "LINES TERMINATED BY '{$newLine}' " .
-			   "FROM `{$table}`" . ($where ? " WHERE {$where}" : NULL) . ($limit ? " LIMIT {$limit}" : NULL) . ";";
-		return ($this->query($sql, $this->link)) ? $file : FALSE;
+			   "LINES TERMINATED BY '{$newLine}';";
+		return ($this->query($sql)) ? $file : FALSE;
 	}
 	
 	/** Export query to CSV file.
@@ -454,12 +677,13 @@ class MySQL_wrapper {
 	 * @param 	string		$escape 		- ESCAPED BY (Default: '\')
 	 * @param 	string 		$newLine		- New line delimiter (Default: \n)
 	 * @param 	boolean		$showColumns 	- Columns names in first line
-	 * @param 	resource 	$link 			- Link identifier
 	 * @return 	- File path
 	 */
-	function query2CSV($sql, $file, $delimiter = ',', $enclosure = '"', $escape = '\\', $newLine = '\n', $showColumns = TRUE, $link = 0) {
-		$this->link = $link ? $link : $this->link;
-		$fh = fopen($file, 'w') or ($this->logErrors) ? $this->log("ERROR", "Can't create CSV file: {$file}") : FALSE;
+	public function query2CSV($sql, $file, $delimiter = ',', $enclosure = '"', $escape = '\\', $newLine = '\n', $showColumns = TRUE) {
+		$fh = fopen($file, 'w') or $this->error("ERROR", "Can't create CSV file: {$file}");
+		if (!$fh) {
+			return FALSE;
+		}
 		fclose($fh);
 		$file = realpath($file);
 		unlink($file);
@@ -467,8 +691,7 @@ class MySQL_wrapper {
 		$sql = trim(rtrim(trim($sql), ';'));
 		// Prepare SQL for column names
 		if ($showColumns) {
-			$regex = '/limit(([\s]+([\d]+)[\s]*,[\s]*([\d]+))|([\s]+([\d]+)))$/i';
-			$r = $this->query((preg_match($regex, $sql)) ? preg_replace($regex, 'LIMIT 1;', $sql) : $sql . ' LIMIT 1;', $this->link);
+			$r = $this->query((preg_match($this->REGEX['LIMIT'], $sql)) ? preg_replace($this->REGEX['LIMIT'], 'LIMIT 1;', $sql) : $sql . ' LIMIT 1;');
 			if ($r !== FALSE && $this->affected > 0) {
 				$columns = $this->fetchArray($r);
 				$this->freeResult($r);
@@ -489,66 +712,107 @@ class MySQL_wrapper {
 			   "OPTIONALLY ENCLOSED BY '{$enclosure}' " .
 			   "ESCAPED BY '{$this->escape($escape)}' " .
 			   "LINES TERMINATED BY '{$newLine}';";
-		return ($this->query($sql, $this->link)) ? $file : FALSE;
+		return ($this->query($sql)) ? $file : FALSE;
+	}
+	
+	/** Create table from CSV file and imports CSV data to Table with possibility to update rows while import.
+	 * @param 	string		$file			- CSV File path
+	 * @param 	string 		$table 			- Table name
+	 * @param	string		$delimiter		- COLUMNS TERMINATED BY (Default: ',')
+	 * @param	string 		$enclosure		- OPTIONALLY ENCLOSED BY (Default: '"')
+	 * @param 	string		$escape 		- ESCAPED BY (Default: '\')
+	 * @param 	integer 	$ignore 		- Number of ignored rows (Default: 1)
+	 * @param 	array		$update 		- If row fields needed to be updated eg date format or increment (SQL format only @FIELD is variable with content of that field in CSV row) $update = array('SOME_DATE' => 'STR_TO_DATE(@SOME_DATE, "%d/%m/%Y")', 'SOME_INCREMENT' => '@SOME_INCREMENT + 1')
+	 * @param 	string 		$getColumnsFrom	- Get Columns Names from (file or generate) - this is important if there is update while inserting (Default: file)
+	 * @param 	string 		$newLine		- New line delimiter (Default: auto detection use \n, \r\n ...)
+	 * @return 	number of inserted rows or false
+	 */
+	public function createTableFromCSV($file, $table, $delimiter = ',', $enclosure = '"', $escape = '\\', $ignore = 1, $update = array(), $getColumnsFrom = 'file', $newLine = FALSE) {
+		$file = file_exists($file) ? realpath($file) : NULL;
+		if ($file === NULL) {
+			$this->error('ERROR', "Create Table form CSV - File: {$file} doesn't exist.");
+			return FALSE;
+		} else {
+			$f = fopen($file, 'r');
+			$line = fgets($f);
+			fclose($f);
+			$data = explode($delimiter, str_replace($enclosure, NULL, trim($line)));
+			$columns = array();
+			$i = 0;
+			
+			foreach ($data as $c) {
+				if ($getColumnsFrom == 'generate') {
+					$c = 'column_' . $i++;
+				}
+				if (preg_match($this->REGEX['COLUMN'], $c)) {
+					$columns[] = "`{$c}` BLOB NULL";
+				} else {
+					$this->error('ERROR', "Invalid column name: {$c} in file: {$file}");
+					return FALSE;
+				}
+			}
+			
+			$this->query("CREATE TABLE `{$table}` ( " . implode(', ', $columns) . " ) ENGINE=InnoDB DEFAULT CHARSET={$this->charset};");
+			if ($this->importCSV2Table($file, $table, $delimiter, $enclosure, $escape, $ignore, $update, ($getColumnsFrom == 'generate') ? 'table' : 'file', $newLine) > 0) {
+				$columns = $this->fetchQueryToArray("SELECT * FROM `{$table}` PROCEDURE ANALYSE ( 10, 30 );", FALSE);
+				$change = array();
+				foreach ($columns as $c) {
+					$c['Field_name'] = implode('`.`', explode('.', $c['Field_name']));
+					$change[] = "CHANGE `{$c['Field_name']}` `{$c['Field_name']}` {$c['Optimal_fieldtype']}";
+				}
+				$this->query("ALTER TABLE `{$table}` " . implode(', ', $change) . ";");
+			}
+		}
 	}
 	
 	/** Rename table(s)
 	 * @param 	array 		$table 	- Names of the tables eg -> array('old_table' => 'new_table') or array('table1' => 'tmp_table', 'table2' => 'table1', 'tmp_table' => 'table1')
-	 * @param 	resource 	$link 	- Link identifier
 	 * @return 	resource or false
 	 */
-	function renameTable($table, $link = 0) {
-		$this->link = $link ? $link : $this->link;
+	public function renameTable($table) {
 		$rename = array();
 		foreach ($table as $old => $new) {
 			$rename[] = "`{$old}` TO `{$new}`";
 		}
-		return $this->query("RENAME TABLE " . implode(', ', $rename) . ";", $link); 
+		return $this->query("RENAME TABLE " . implode(', ', $rename) . ";"); 
 	}
 
 	/** Copy table structure or structure and data.
 	 * @param 	string 		$table 		- Table name
 	 * @param 	string 		$new_table 	- New table name
 	 * @param 	boolean		$data 		- Copy table data
-	 * @param 	resource 	$link 		- Link identifier
 	 * @return 	resource or false
 	 */
-	function copyTable($table, $new_table, $data = TRUE, $link = 0) {
-		$this->link = $link ? $link : $this->link;
-		$r = $this->query("CREATE TABLE `{$new_table}` LIKE `{$table}`;", $link);
-		return ($r && $data) ? $this->query("INSERT INTO `{$new_table}` SELECT * FROM `{$table}`;", $link) : $r;
+	public function copyTable($table, $new_table, $data = TRUE) {
+		$r = $this->query("CREATE TABLE `{$new_table}` LIKE `{$table}`;");
+		return ($r && $data) ? $this->query("INSERT INTO `{$new_table}` SELECT * FROM `{$table}`;") : $r;
 	}
 
 	/** Truncate table
 	 * @param 	string 		$table 		- Table name
-	 * @param 	resource 	$link 		- Link identifier
 	 * @return 	resource or false
 	 */
-	function truncateTable($table, $link = 0) {
-		$this->link = $link ? $link : $this->link;
-		return $this->query("TRUNCATE TABLE `" . $table . "`;", $link); 
+	public function truncateTable($table) {
+		return $this->query("TRUNCATE TABLE `" . $table . "`;"); 
 	}
 	
 	/** Drop table(s)
 	 * @param 	array 		$table 		- Names of the tables eg -> array('table1', 'table2')
 	 * @param 	boolean		$if_exists	- Use IF EXISTS to prevent an error from occurring for tables that do not exist.
-	 * @param 	resource 	$link 		- Link identifier
 	 * @return 	resource or false
 	 */
-	function dropTable($table, $if_exists = TRUE, $link = 0) {
-		$this->link = $link ? $link : $this->link;
-		return $this->query("DROP TABLE " . ($if_exists ? "IF EXISTS " : NULL) . "`" . (is_array($table) ? implode('`, `', $table) : $table) . "`;", $link); 
+	public function dropTable($table, $if_exists = TRUE) {
+		return $this->query("DROP TABLE " . ($if_exists ? "IF EXISTS " : NULL) . "`" . (is_array($table) ? implode('`, `', $table) : $table) . "`;"); 
 	}
 	
 	/** Data Base size in B / KB / MB / GB / TB
 	 * @param 	string	 	$sizeIn		- Size in B / KB / MB / GB / TB
+	 * @param 	string	 	$sizeIn		- Size in B / KB / MB / GB / TB
 	 * @param 	integer	 	$round		- Round on decimals
-	 * @param 	resource 	$link 		- Link identifier
 	 * @return 	- Size in B / KB / MB / GB / TB
 	 */
-	function getDataBaseSize($sizeIn = 'MB', $round = 2, $link = 0) {
-		$this->link = $link ? $link : $this->link;
-		$r = $this->query("SELECT ROUND( SUM( `data_length` + `index_length` ) " . str_repeat('/ 1024 ', array_search(strtoupper($sizeIn), array('B', 'KB', 'MB', 'GB', 'TB'))) . ", {$round} ) `size` FROM `information_schema`.`TABLES` WHERE `table_schema` LIKE '{$this->database}' GROUP BY `table_schema`;", $this->link);
+	public function getDataBaseSize($sizeIn = 'MB', $round = 2) {
+		$r = $this->query("SELECT ROUND( SUM( `data_length` + `index_length` ) " . str_repeat('/ 1024 ', array_search(strtoupper($sizeIn), array('B', 'KB', 'MB', 'GB', 'TB'))) . ", {$round} ) `size` FROM `information_schema`.`TABLES` WHERE `table_schema` LIKE '{$this->database}' GROUP BY `table_schema`;");
 		if ($r !== FALSE) {
 			$row = $this->fetchArray($r);
 			$this->freeResult($r);
@@ -559,23 +823,20 @@ class MySQL_wrapper {
 	}
 	
 	/** Retrieves the ID generated for an AUTO_INCREMENT column by the previous query.
-	 * @param 	resource 	$link 	- Link identifier
+	 * @param 	void
 	 * @return 	integer
 	 */
-	function insertId($link = 0) {
-		$this->link = $link ? $link : $this->link;
-		return $this->link ? mysql_insert_id($this->link) : FALSE;
+	public function insertID() {
+		return $this->call('insert_id');
 	}
 	
 	/** Retrieves the number of rows from table based on certain conditions.
 	 * @param 	string 		$table 	- Table name
 	 * @param 	string 		$where 	- WHERE Clause
-	 * @param 	resource 	$link 	- Link identifier
 	 * @return 	integer or false
 	 */
-	function countRows($table, $where = NULL, $link = 0) {
-		$this->link = $link ? $link : $this->link;
-		$r = $this->query("SELECT COUNT( * ) AS count FROM `{$table}` " . ($where ? " WHERE {$where}" : NULL) . ";", $this->link);
+	public function countRows($table, $where = NULL) {
+		$r = $this->query("SELECT COUNT( * ) AS count FROM `{$table}` " . ($where ? " WHERE {$where}" : NULL) . ";");
 		if ($r !== FALSE) {
 			$row = $this->fetchArray($r);
 			$this->freeResult($r);
@@ -587,12 +848,10 @@ class MySQL_wrapper {
 	
 	/** Retrieves next auto increment value.
 	 * @param 	string 		$table 	- Table name
-	 * @param 	resource 	$link 	- Link identifier
 	 * @return 	integer or false
 	 */
-	function nextAutoIncrement($table, $link = 0) {
-		$this->link = $link ? $link : $this->link;
-		$r = $this->query("SHOW TABLE STATUS LIKE '{$table}';", $this->link);  
+	public function nextAutoIncrement($table) {
+		$r = $this->query("SHOW TABLE STATUS LIKE '{$table}';");  
 		if ($r !== FALSE) {
 			$row = $this->fetchArray();  
 			$this->freeResult($r);
@@ -606,42 +865,142 @@ class MySQL_wrapper {
 	 * @param 	string 		$table 	- Table name
 	 * @param 	string 		$where 	- WHERE Clause
 	 * @param 	integer 	$limit 	- Limit offset
-	 * @param 	resource 	$link 	- Link identifier
 	 * @return 	number of deleted rows or false
 	 */
-	function deleteRow($table, $where = NULL, $limit = 0, $link = 0) {
-		$this->link = $link ? $link : $this->link;
-		return $this->query("DELETE FROM `{$table}`" . ($where ? " WHERE {$where}" : NULL) . ($limit ? " LIMIT {$limit}" : NULL) . ";", $this->link) ? $this->affected : FALSE;
+	public function deleteRow($table, $where = NULL, $limit = 0) {
+		return $this->query("DELETE FROM `{$table}`" . ($where ? " WHERE {$where}" : NULL) . ($limit ? " LIMIT {$limit}" : NULL) . ";") ? $this->affected : FALSE;
+	}
+	
+	/** Export query to XML file or return as XML string
+	 * @param	string		$query				- mysql query
+	 * @param	string		$rootElementName	- root element name
+	 * @param	string		$childElementName	- child element name
+	 * @return	string		- XML
+	 */
+	public function query2XML($query, $rootElementName, $childElementName, $file = NULL) {
+		// Save to file
+		if (!empty($file)) {
+			$fh = fopen($file, 'w') or $this->error("ERROR", "Can't create XML file: {$file}");
+			if (!$fh) {
+				return FALSE;
+			}
+			fclose($fh);
+			$file = realpath($file);
+			$saveToFile = TRUE;
+		} else {
+			$saveToFile = FALSE;
+		}
+		
+		// Do query
+		$r = $this->query($query);
+		
+		// XML header
+		if ($saveToFile) {
+			file_put_contents($file, "<?xml version=\"1.0\" encoding=\"" . strtoupper($this->charset) . "\" ?>\n<" . $rootElementName . ">\n", LOCK_EX);
+		} else {
+			$xml = "<?xml version=\"1.0\" encoding=\"" . strtoupper($this->charset) . "\" ?>\n";
+			$xml .= "<" . $rootElementName . ">\n";
+		}
+		
+		// Query rows
+		while($row = $this->call('fetch_object', $r)) {
+			// Create the first child element
+			$record = "\t<" . $childElementName . ">\n";
+			for ($i = 0; $i < $this->call('num_fields', $r); $i++) {
+				// Different methods of getting field name for mysql and mysqli
+				if ($this->extension == 'mysql') {
+					$fieldName = $this->call('field_name', $r, $i);
+				} elseif ($this->extension == 'mysqli') {
+					$colObj = $this->call('fetch_field_direct', $r, $i);                            
+					$fieldName = $colObj->name;
+				}
+				// The child will take the name of the result column name
+				$record .= "\t\t<" . $fieldName . ">";
+				// Set empty columns with NULL and escape XML entities
+				if(!empty($row->$fieldName)) {
+					$record .= htmlspecialchars($row->$fieldName, ENT_XML1);
+				} else {
+					$record .= NULL; 
+				}
+				$record .= "</" . $fieldName . ">\n";
+			}
+			$record .= "\t</" . $childElementName . ">\n";
+			if ($saveToFile) {
+				file_put_contents($file, $record, FILE_APPEND | LOCK_EX);
+			} else {
+				$xml .= $record;
+			}
+		}
+		
+		// Output
+		if ($saveToFile) {
+			file_put_contents($file, "</" . $rootElementName . ">\n", FILE_APPEND | LOCK_EX);
+			return TRUE;
+		} else {
+			$xml .= "</" . $rootElementName . ">\n";
+			return $xml; 
+		}
 	}
 	
 	/** Begin Transaction
-	 * @param 	resource 	$link 	- Link identifier
+	 * @param 	void
 	 */
-	function begin($link = 0) { 
-		$this->link = $link ? $link : $this->link;
-		$this->query("START TRANSACTION", $this->link); 
-		return $this->query("BEGIN", $this->link); 
+	public function begin() { 
+		$this->query("START TRANSACTION"); 
+		return $this->query("BEGIN"); 
 	}
 	
 	/** Replace all occurrences of the search string with the replacement string in MySQL Table Column(s).
-	 * @param 	string		$table 	 - Table name
+	 * @param 	string		$table 	 - Table name or "*" to replace in whole db
 	 * @param 	mixed 		$columns - Search & Replace affected Table columns. An array may be used to designate multiple replacements.
 	 * @param 	mixed 		$search  - The value being searched for, otherwise known as the needle. An array may be used to designate multiple needles.
 	 * @param 	mixed 		$replace - The replacement value that replaces found search values. An array may be used to designate multiple replacements.
 	 * @param 	string 		$where 	 - WHERE Clause
 	 * @param 	integer 	$limit 	 - Limit offset
-	 * @param 	resource 	$link 	 - Link identifier
 	 * @return  integer 	- Affected rows
 	 */
-	function strReplace($table, $columns, $search, $replace, $where = NULL, $limit = 0, $link = 0) {
-		$this->link = $link ? $link : $this->link;
+	public function strReplace($table, $columns, $search, $replace, $where = NULL, $limit = 0) {
+		// Replace in whole DB
+		if ($table == '*') {
+			if (!is_array($columns)){
+				$stringColumns = $columns;
+				if ($stringColumns != '*') {
+					// Put columns into array
+					$columns = array();
+					if (preg_match($this->REGEX['COLUMN'], $stringColumns)) {
+						$columns[] = $stringColumns;
+					} else {
+						foreach (explode(',', $stringColumns) as $c) {
+							$columns[] = trim(str_replace(array("'", "`", "\""), NULL, $c));
+						}
+					}
+					if (empty($columns)) {
+						return FALSE;
+					}
+				}
+			}
+			$q = $this->query(
+				"SELECT DISTINCT `table_name` AS `table`, GROUP_CONCAT(DISTINCT `column_name` ORDER BY `column_name`) AS `columns` FROM `information_schema`.`columns` " .
+				"WHERE (`data_type` LIKE '%char%' OR `data_type` LIKE '%text' OR `data_type` LIKE '%binary')" . (($stringColumns != '*') ? " AND `column_name` IN('" . implode("', '", $columns) . "')" : NULL) . " AND `table_schema` = '{$this->database}' " .
+				"GROUP BY `table_name` ORDER BY `table_name`;"
+			);
+			$affected = 0;
+			if ($this->affected > 0) {
+				while ($row = $this->fetchArray($q)) {
+					$affected += $this->strReplace($row['table'], $row['columns'], $search, $replace, $where, $limit);
+				}
+			}
+			$this->freeResult($q);
+			return $affected;
+		}
+		
 		// Columns
 		if (!is_array($columns)){
 			$stringColumns = $columns;
 			$columns = array();
 			if ($stringColumns == '*') {
-				$columns = $this->getColumns($table, $this->link);
-			} elseif (preg_match('/^[A-Za-z][A-Za-z0-9_]*$/i', $stringColumns)) {
+				$columns = $this->getColumns($table);
+			} elseif (preg_match($this->REGEX['COLUMN'], $stringColumns)) {
 				$columns[] = $stringColumns;
 			} else {
 				// Put columns into array if not *
@@ -651,6 +1010,7 @@ class MySQL_wrapper {
 				}
 			}
 		}
+		
 		// Update
 		$update = array();
 		foreach ($columns as $col) {
@@ -662,57 +1022,208 @@ class MySQL_wrapper {
 				$update[] = "`{$col}` = REPLACE(`{$col}`, '{$this->escape($search)}', '{$this->escape($replace)}')";
 			}
 		}
-		$this->query("UPDATE `{$table}` SET " . implode(', ', $update) . ($where ? " WHERE {$where}" : NULL) . ($limit ? " LIMIT {$limit}" : NULL) . ";", $this->link);
+		$this->query("UPDATE `{$table}` SET " . implode(', ', $update) . ($where ? " WHERE {$where}" : NULL) . ($limit ? " LIMIT {$limit}" : NULL) . ";");
 		return $this->affected;
 	}
 	
 	/** Commit
-	 * @param 	resource 	$link 	- Link identifier
+	 * @param 	void
 	 */
-	function commit($link = 0) { 
-		$this->link = $link ? $link : $this->link;
-		return $this->query("COMMIT", $this->link); 
+	public function commit() { 
+		return $this->query("COMMIT"); 
 	} 
 	
 	/** Rollback
-	 * @param 	resource 	$link 	- Link identifier
+	 * @param 	void
 	 */
-	function rollback($link = 0) { 
-		$this->link = $link ? $link : $this->link;
-		return $this->query("ROLLBACK", $this->link); 
+	public function rollback() { 
+		return $this->query("ROLLBACK"); 
 	} 
 	
 	/** Transaction
 	 * @param 	array		$qarr	- Array with Queries
-	 * @param 	resource 	$link 	- Link identifier
 	 * @link	http://dev.mysql.com/doc/refman/5.0/en/commit.html
 	 */
-	function transaction($qarr = array(), $link = 0) { 
-		$this->link = $link ? $link : $this->link;
+	public function transaction($qarr = array()) { 
 		$commit = TRUE;
 		$this->begin(); 
 		foreach ($qarr as $q) { 
-			$this->query($q, $this->link);
+			$this->query($q);
 			if ($this->affected == 0) $commit = FALSE;
 		}
 		if ($commit == FALSE) {
-			$this->rollback($this->link);
+			$this->rollback();
 			return FALSE;
 		} else {
-			$this->commit($this->link);
+			$this->commit();
 			return TRUE;
 		}
+	}
+	
+	/** Init table revision
+	 * @param 	string		$table	- Table name
+	 */
+	public function initTableRevision($table) {
+		// Revision table name
+		$rev_table = "{$table}_revision";
+		
+		// Create tmp table
+		$this->query("CREATE TABLE `{$rev_table}` LIKE `{$table}`;");
+		
+		// Remove auto_increment if exists
+		$change = array();
+		$this->query("SHOW COLUMNS FROM `{$rev_table}` WHERE `Key` NOT LIKE '' OR `Default` IS NOT NULL;");
+		if($this->affected > 0){
+			while ($row = $this->fetchArray()) {
+				$change[$row['Field']] = "CHANGE `{$row['Field']}` `{$row['Field']}` {$row['Type']} DEFAULT " . (($row['Extra']) ? 0 : 'NULL');
+			}
+			$this->freeResult();
+		}
+		// Alter revision table
+		$this->query("ALTER TABLE `{$rev_table}` " . implode(', ', $change) . ";");
+		
+		
+		// Remove indexes from revision table
+		$this->query("SHOW INDEXES FROM `{$rev_table}`;");
+		$drop = array();
+		if($this->affected > 0){
+			while ($row = $this->fetchArray()) {
+				$drop[] = "DROP INDEX `{$row['Key_name']}`";
+			}
+			$this->freeResult();
+		}
+		$this->query("ALTER TABLE `{$rev_table}` " . implode(', ', $drop) . ";");
+		
+		$change = array();
+		// Add revision fields
+		$change['revision_timestamp'] = "ADD `revision_timestamp` TIMESTAMP ON UPDATE CURRENT_TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP FIRST";
+		$change['revision_action'] = "ADD `revision_action` enum('INSERT', 'UPDATE', 'DELETE') DEFAULT NULL FIRST";
+		$change['revision_user'] = "ADD `revision_user` CHAR( 256 ) NOT NULL FIRST";
+		$change['revision_id'] = "ADD `revision_id` INT NOT NULL AUTO_INCREMENT FIRST";
+
+		// Add keys
+		$change[] = "ADD KEY (`revision_action`, `revision_timestamp`)";
+		$change[] = "ADD KEY `revision_timestamp` (`revision_timestamp`)";
+		$change[] = "ADD PRIMARY KEY `revision_id` (`revision_id`)";
+		// Alter revision table
+		$this->query("ALTER TABLE `{$rev_table}` " . implode(', ', $change) . ";");
+		
+		$columns = $this->getColumns($table);
+		
+		// Insert trigger
+		$this->query(
+			"CREATE TRIGGER `{$table}_revision_insert` AFTER INSERT ON `{$table}` " .
+			"FOR EACH ROW " .
+			"BEGIN " .
+				"INSERT INTO `{$rev_table}` (`revision_action`, `revision_timestamp`, `revision_user`, `" . implode('`, `', $columns) . "`) VALUES ('INSERT', NOW(), USER(),  NEW.`" . implode('`, NEW.`', $columns) . "`); " .
+			"END;"
+		);
+		
+		// Update trigger
+		$this->query(
+			"CREATE TRIGGER `{$table}_revision_update` AFTER UPDATE ON `{$table}` " .
+			"FOR EACH ROW " .
+			"BEGIN " .
+				"INSERT INTO `{$rev_table}` (`revision_action`, `revision_timestamp`, `revision_user`, `" . implode('`, `', $columns) . "`) VALUES ('UPDATE', NOW(), USER(), NEW.`" . implode('`, NEW.`', $columns) . "`); " .
+			"END;" 
+		);
+		
+		// Delete trigger
+		$this->query(
+			"CREATE TRIGGER `{$table}_revision_delete` AFTER DELETE ON `{$table}` " .
+			"FOR EACH ROW " .
+			"BEGIN " .
+				"INSERT INTO `{$rev_table}` (`revision_action`, `revision_timestamp`, `revision_user`, `" . implode('`, `', $columns) . "`) VALUES ('DELETE', NOW(), USER(), OLD.`" . implode('`, OLD.`', $columns) . "`); " .
+			"END;"
+		);
+		
+		// Insert existing data into revision table
+		$this->query(
+			"INSERT INTO `{$rev_table}` (`revision_action`, `revision_timestamp`, `revision_user`, `" . implode('`, `', $columns) . "`) " .
+			"SELECT 'INSERT' AS `revision_action`, NOW() AS `revision_timestamp`, USER() AS `revision_user`, `{$table}`.* FROM `{$table}`;"
+		);
+	}
+	
+	/** Create table from current revision time
+	 * @param 	string		$table		- New table name
+	 * @param	string 		$rev_table	- Revision table (origin table)
+	 * @param	string 		$id_field	- Unique field name
+	 * @param	datetime	- Revision time
+	 */
+	public function createTableFromRevisionTime($table, $rev_table, $id_field, $time) {
+		$time = strtotime($time);
+		$columns = $this->getColumns($rev_table);
+		
+		// Status at the time, use for update
+		$this->query(
+			"CREATE TABLE `{$table}` " .
+			"SELECT `" . implode('`, `', $columns) . "` " .
+			"FROM (" .
+					"SELECT `" . implode('`, `', $columns) . "` " .
+					"FROM `{$rev_table}_revision` " .
+					"WHERE `revision_timestamp` <= STR_TO_DATE('" . date('Y-m-d H:i:s', $time) . "', '%Y-%m-%d %H:%i:%s') " .
+					"ORDER BY `revision_timestamp` DESC".
+				") AS `b` " .
+			"WHERE `{$id_field}` NOT IN(" .
+				"SELECT `{$id_field}` " .
+				"FROM `{$rev_table}_revision` " .
+				"WHERE `revision_timestamp` <= STR_TO_DATE('" . date('Y-m-d H:i:s', $time) . "', '%Y-%m-%d %H:%i:%s') AND `revision_action` LIKE 'DELETE'" .
+			") GROUP BY `{$id_field}`;"
+		);
+	}
+	
+	/** Restore table from current revision time
+	 * @param 	string		$table		- New table name
+	 * @param	string 		$id_field	- Unique field name
+	 * @param	datetime	- Revision time
+	 */
+	public function restoreTableFromRevisionTime($table, $id_field, $time) {
+		$time = strtotime($time);
+		$columns = $this->getColumns($table);
+		$cols = array();
+		foreach ($columns as $c) {
+			$cols[] = "`{$c}` = VALUES(`{$c}`)";
+		}
+		
+		// Remove added items after defined time
+		$this->query(
+			"DELETE FROM `{$table}` " .
+			"WHERE `{$id_field}` IN(" .
+				"SELECT `{$id_field}` " .
+				"FROM `{$table}_revision` " .
+				"WHERE `revision_action` = 'INSERT' AND `revision_timestamp` > STR_TO_DATE('" . date('Y-m-d H:i:s', $time) . "', '%Y-%m-%d %H:%i:%s') " .
+				"GROUP BY `{$id_field}`" .
+			");"
+		);
+		
+		// Update
+		$this->query(
+			"INSERT INTO `{$table}` (`" . implode('`, `', $columns) . "`) " .
+				"SELECT `" . implode('`, `', $columns) . "` " .
+				"FROM (" .
+						"SELECT `" . implode('`, `', $columns) . "` " .
+						"FROM `{$table}_revision` " .
+						"WHERE `revision_timestamp` <= STR_TO_DATE('" . date('Y-m-d H:i:s', $time) . "', '%Y-%m-%d %H:%i:%s') " .
+						"ORDER BY `revision_timestamp` DESC" .
+					") AS `b` 
+				WHERE `{$id_field}` NOT IN(" .
+					"SELECT `{$id_field}` " .
+					"FROM `{$table}_revision` " .
+					"WHERE `revision_timestamp` <= STR_TO_DATE('" . date('Y-m-d H:i:s', $time) . "', '%Y-%m-%d %H:%i:%s') AND `revision_action` LIKE 'DELETE'" .
+				") GROUP BY `{$id_field}` " .
+			"ON DUPLICATE KEY UPDATE " . implode(', ', $cols) . ";"
+		);
 	}
 	
 	/** Prints error message
 	 * @param 	string		$msg	- Message
 	 * @param 	boolean 	$web 	- HTML (TRUE) or Plaint text
 	 */
-	function error($msg, $web = FALSE) {
-		if ($this->displayError || $this->logErrors) {
+	private function error($msg, $web = FALSE) {
+		if ($this->displayError || $this->logErrors || $this->emailErrors) {
 			if ($this->link) {
-				$this->error = mysql_error($this->link);
-				$this->errorNo = mysql_errno($this->link);
+				$this->error = $this->call('error');
+				$this->errorNo = $this->call('errno');
 			}
 			$nl 	= empty($_SERVER['REMOTE_ADDR']) ? PHP_EOL : "<br>" . PHP_EOL;
 			$web 	= empty($_SERVER['REMOTE_ADDR']) ? FALSE : $web;
@@ -721,14 +1232,37 @@ class MySQL_wrapper {
 				$this->log('ERROR', "NO -> {$this->errorNo} - DESC -> {$this->error} - CALL -> {$this->backtrace()}");
 			if ($this->displayError) 
 				echo $msg, $this->link ? $error : NULL;
+			if ($this->emailErrors) {
+				$headers = array();
+				$headers[] = "MIME-Version: 1.0";
+				$headers[] = "Content-type: text/plain; charset=UTF-8";
+				$headers[] = "From: MySQL ERROR REPORTING <no-reply@{$_SERVER['SERVER_ADDR']}>";
+				$headers[] = "Reply-To: Recipient Name <no-reply@{$_SERVER['SERVER_ADDR']}>";
+				$headers[] = "Subject: {$this->emailErrorsSubject}";
+				$headers[] = "X-Mailer: PHP/" . phpversion();
+				$m = array();
+				$m['ENV']      = $_SERVER['SERVER_NAME'];
+				$m['TIME']     = date($this->dateFormat);
+				$m['SCRIPT']   = $_SERVER['PHP_SELF'];
+				$m['CALL']     = $this->backtrace();
+				$m['ERROR NO'] = $this->errorNo;
+				$m['ERROR']    = $this->error;
+				$m['MESSAGE']  = $msg;
+				$message = array();
+				foreach ($m as $k => $v) {
+					$message[] = sprintf("%-10s%s", $k, $v);
+				}
+				mail(implode(', ', $this->emailErrorsTo), sprintf($this->emailErrorsSubject, $_SERVER['SERVER_NAME']), implode("\r\n", $message), implode("\r\n", $headers));
+			}
 		}
+		!$this->dieOnError || die();
 	}
 	
 	/** Logs queries or / and errors to file
 	 * @param 	string		$type	- Log type
 	 * @param 	string	 	$log 	- Message
 	 */
-	function log($type, $log) {
+	private function log($type, $log) {
 		try {
 			$fh = fopen($this->logFilePath, 'a');
 			fwrite($fh, date($this->dateFormat) . " - {$type} -> {$log}" . PHP_EOL);
@@ -742,7 +1276,7 @@ class MySQL_wrapper {
 	 * @param	void
 	 * @return	string 		- Backtrace
 	 */
-	function backtrace() {
+	private function backtrace() {
 		foreach (debug_backtrace() as $t) {
 			if ($t['file'] != __FILE__) {
 				return "Function {$t['function']} in {$t['file']} on line {$t['line']}";
@@ -753,8 +1287,24 @@ class MySQL_wrapper {
 	/** Get Microtime
 	 * @return 	float 		- Current time
 	 */
-	function getMicrotime() {
+	private function getMicrotime() {
 		list($usec, $sec) = explode(" ", microtime());
 		return ((float) $usec + (float) $sec);
-    }
+	}
+	
+	/** Detect EOL from file
+	 * @param	string		- File path
+	 * @retrun	- EOL chr
+	 */
+	private function detectEOL($file) {
+		$f = fopen($file, 'r');
+		$line = fgets($f);
+		fclose($f);
+		foreach (array("\r\n", "\r", "\n") as $eol) {
+			if (substr_compare($line, $eol, -strlen($eol)) === 0) {
+				return $eol;
+			}
+		}
+		return FALSE;
+	}
 }

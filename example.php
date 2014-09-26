@@ -13,9 +13,12 @@ include 'User_Log_In.class.php';
 
 
 
-$db = new MySQL_wrapper(MYSQL_HOST, MYSQL_USERNAME, MYSQL_PASSWORD, MYSQL_DATABASE);
+$db = MySQL_wrapper::getInstance(MYSQL_HOST, MYSQL_USERNAME, MYSQL_PASSWORD, MYSQL_DATABASE);
 
+// Logging only for testing!
 $db->logQueries = TRUE;
+
+// Log errors
 $db->logErrors = TRUE;
 
 // Create object
